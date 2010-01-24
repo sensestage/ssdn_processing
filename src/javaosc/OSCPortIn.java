@@ -76,7 +76,7 @@ public class OSCPortIn extends OSCPort implements Runnable {
 	}
 	
 	private void dispatchPacket(OSCPacket packet, Date timestamp) {
-		if (packet instanceof OSCBundle) dispatchBundle((OSCBundle) packet);
+		if(packet instanceof OSCBundle) dispatchBundle((OSCBundle) packet);
 		else dispatchMessage((OSCMessage) packet, timestamp);
 	}
 	

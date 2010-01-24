@@ -4,7 +4,7 @@ import datanetwork.javaosc.*;
 import java.util.Vector;
 
 /**
- * <p>Allows the creation of nodes that can be published on the SenseWorldDataNetwork.</p>
+ * <p>Allows the creation of nodes that can be published on the SenseWorld DataNetwork.</p>
  *
  * <p>Part of <a target="_blank" href="http://sensestage.hexagram.ca">Sense/Stage</a></p>
  * 
@@ -66,26 +66,5 @@ public class DNNode {
 	 */
 	public int getSize() {
 		return slots.size();
-	}
-	
-	/**
-	 * Sets the data type the node is expecting in its slots.
-	 *
-	 * @param type data type the slots are expecting.  0 is {@link java.lang.Float} and 1 represents {@link java.lang.String} String.
-	 */
-	/*public void setType(int type) {
-		if(type <= 1 || type <= 0)
-			this.type = type;
-		else 
-			System.err.println("DNNode error: invalid node type (0 or 1)");
-	}*/
-	
-	/** 
-	 * Returns the data type the node is expecting for its slots.
-	 *
-	 * @return data type the slots are expecting.  0 is {@link java.lang.Float} and 1 represents {@link java.lang.String} String.
-	 */
-	public int getType() {
-		return type;
 	}
 }

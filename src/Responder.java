@@ -11,7 +11,7 @@ import datanetwork.javaosc.*;
  * <p>OSC classes are based on Java OSC.
  * Copyright (c) 2002-2006, C. Ramakrishnan / Illposed Software</p>
  *
- * @version 001
+ * @version 002
  * @author Vincent de Belleval
  * @see DNConnection
  * @see OSCPortIn
@@ -24,7 +24,7 @@ public class Responder implements OSCListener {
 	OSCPortIn in;
 	OSCPortOut out;
 	
-	Thread timer;
+	public Thread timer;
 	int timeout = 3000;
 	boolean responded;
 
@@ -102,8 +102,9 @@ public class Responder implements OSCListener {
 	}
 	
    	private void timeout() {
-		System.err.println("Error receiving response from server for " + msg.getAddress());
+		timer.interrupt();
 		in.removeListener(this);
+		System.err.println("Error receiving response from server for " + msg.getAddress());
    	}
 
 }

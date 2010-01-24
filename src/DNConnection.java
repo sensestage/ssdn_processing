@@ -9,11 +9,10 @@ import java.lang.reflect.Method;
 import processing.core.PApplet;
 
 /** 
- * <p>The SenseWorldDataNetwork Processing library offers a quick and easy way to retrieve or publish data from a SenseStageDataNetwork.</p>
+ * <p>The SenseWorld DataNetwork Processing library offers a quick and easy way to retrieve or publish data from a SenseStage DataNetwork.</p>
  * 
  * <p>Part of <a target="_blank" href="http://sensestage.hexagram.ca">Sense/Stage</a></p>
- * <p>OSC classes are based on Java OSC.
- * Copyright (c) 2002-2006, C. Ramakrishnan / Illposed Software</p>
+ * <p>OSC classes are based on Java OSC.  Copyright (c) 2002-2006, C. Ramakrishnan / Illposed Software</p>
  * 
  * <p>The DNConnection sets up the incomming and outgoing connections to the server.
  * Once connected to server, it is possible to send messages on the network using the methods provided in this class.
@@ -25,7 +24,6 @@ import processing.core.PApplet;
  *
  * @version 002
  * @author Vincent de Belleval (v@debelleval.com)
- * @author Brett Bergmann
  */
 
 public class DNConnection {
@@ -40,6 +38,7 @@ public class DNConnection {
 	Vector<Subscribtion> subscribtion;
 	int verbo = 0;
 	String name;
+	String address;
 	boolean isRegistered;
 	boolean subscribe_all;
 	
@@ -55,6 +54,7 @@ public class DNConnection {
 	 */
 	public DNConnection(PApplet parent, String address, int outgoing_port, int incoming_port, String name) {
 		this.parent = parent;
+		this.address = address;
 		this.incoming_port = incoming_port;
 		this.outgoing_port = outgoing_port;
 		this.name = name;
@@ -80,7 +80,8 @@ public class DNConnection {
 			dnEvent[2] = parent.getClass().getMethod("dnEvent", new Class[] { String.class, float[].class });
 		} catch (Exception e) {}
 		
-		System.out.println("\nSenseWorldDataNetwork client connenected to server at "+address+"\nListening to port "+incoming_port+"\nSending on port "+outgoing_port+"\n");
+		System.out.println("\nSenseWorldDataNetwork client connenected to server at "+address+"\nListening to port "+in.getPort()+"\nSending on port "+out.getPort()+"\n");
+		
 	}
 	
 	/**
@@ -107,8 +108,8 @@ public class DNConnection {
 	}
 	
 	/** 
-	 * Not to be called directly by the user!
-	 * Recieves all the messages from the server and routes them.
+	 * Not to be called directly.
+	 * Recieves and routes all the server messages.
 	 *
 	 * @param message the recieved OSCMessage.
      */
@@ -118,9 +119,12 @@ public class DNConnection {
 		
 		if(addr.equals("/datanetwork/announce")) {
 			printmsg(addr, args);
-			if(!isRegistered()) register();	//ERROR: this will create an error when initially the client is booted before the server.
-		} else if(addr.equals("/datanetwork/quit")) {
+			outgoing_port = getServerPort(address);	//get the current server port.  might have changed at reboot.
+			register();
+		} else if(addr.equals("/datanetwork/quit") && args[0].equals(address) && args[1].equals(outgoing_port)) {
+			isRegistered = false;
 			printmsg(addr, args);
+			pingResponder.removePingResponder();
 		} else if(addr.equals("/error")) {
 			if(verbo > 0) {
 				System.out.print("\nSenseWorldDataNetwork server error: ");
@@ -134,9 +138,11 @@ public class DNConnection {
 		} else if(addr.equals("/ping")) {
 			if(verbo > 4) printmsg(addr, args);
 		} else if(addr.equals("/registered")) {
+			out = new OSCPortOut(address, outgoing_port);
 			isRegistered = true;
 			dnEventInvoke(message);
-			if(verbo > 2) printmsg(addr, args);
+			if(verbo > 3) printmsg(addr, args);
+			
 			//add previously expected nodes on register
 			if(!client_nodes.isEmpty()) {
 				DNNode[] nds = new DNNode[client_nodes.size()];
@@ -146,47 +152,38 @@ public class DNConnection {
 		} else if(addr.equals("/unregistered")) {
 			isRegistered = false;
 			dnEventInvoke(message);
-			if(verbo > 2) printmsg(addr, args);
+			if(verbo > 3) printmsg(addr, args);
 		} else if(addr.equals("/subscribed/node")) {	//SUBSCRIBE NODE
-			if(verbo > 2) printmsg(addr, args);
-			if(subscribtion_list.indexOf(Integer.parseInt(args[1].toString())) == -1) {
-				subscribtion_list.addElement(Integer.parseInt(args[1].toString()));
-				subscribtion.addElement(new Subscribtion(Integer.parseInt(args[1].toString())));
+			if(verbo > 3) printmsg(addr, args);
+			if(subscribtion_list.indexOf(Integer.parseInt(args[2].toString())) == -1) {
+				subscribtion_list.addElement(Integer.parseInt(args[2].toString()));
+				subscribtion.addElement(new Subscribtion(Integer.parseInt(args[2].toString())));
 			}
 		} else if(addr.equals("/unsubscribed/node")) {	//UNSUBSCRIBE NODE
-			if(verbo > 2) printmsg(addr, args);
-			int nodeIndex = subscribtion_list.indexOf(Integer.parseInt(args[1].toString()));
+			if(verbo > 3) printmsg(addr, args);
+			int nodeIndex = subscribtion_list.indexOf(Integer.parseInt(args[2].toString()));
 			if(nodeIndex != -1) {
 				subscribtion_list.removeElementAt(nodeIndex);
 				subscribtion.removeElementAt(nodeIndex);
 			}
 	 	} else if(addr.equals("/subscribed/slot")) {	//SUBSCRIBE SLOT
-			if(verbo > 2) printmsg(addr, args);
-			if(subscribtion_list.indexOf(Integer.parseInt(args[1].toString())) == -1) {
-				subscribtion_list.addElement(Integer.parseInt(args[1].toString()));
-				subscribtion.addElement(new Subscribtion(Integer.parseInt(args[1].toString()), Integer.parseInt(args[2].toString())));
-			} else subscribtion.elementAt(subscribtion_list.indexOf(Integer.parseInt(args[1].toString()))).addSubscribedSlot(Integer.parseInt(args[2].toString()));
+			if(verbo > 3) printmsg(addr, args);
+			if(subscribtion_list.indexOf(Integer.parseInt(args[2].toString())) == -1) {
+				subscribtion_list.addElement(Integer.parseInt(args[2].toString()));
+				subscribtion.addElement(new Subscribtion(Integer.parseInt(args[2].toString()), Integer.parseInt(args[3].toString())));
+			} else subscribtion.elementAt(subscribtion_list.indexOf(Integer.parseInt(args[2].toString()))).addSubscribedSlot(Integer.parseInt(args[3].toString()));
 		} else if(addr.equals("/unsubscribed/slot")) {	//UNSUBSCRIBED SLOT
-			if(verbo > 2) printmsg(addr, args);
-			int nodeIndex = subscribtion_list.indexOf(Integer.parseInt(args[1].toString()));
+			if(verbo > 3) printmsg(addr, args);
+			int nodeIndex = subscribtion_list.indexOf(Integer.parseInt(args[2].toString()));
 			if(nodeIndex != -1) {
-				subscribtion.elementAt(nodeIndex).removeSusbscribedSlot(Integer.parseInt(args[2].toString()));
+				subscribtion.elementAt(nodeIndex).removeSusbscribedSlot(Integer.parseInt(args[3].toString()));
 				if(subscribtion.elementAt(nodeIndex).getSize() == 0) {
 					subscribtion_list.removeElementAt(nodeIndex);
 					subscribtion.removeElementAt(nodeIndex);
 				}
 			}
 		} else if(addr.equals("/removed/node")) {	//REMOVED NODE			
-			if(verbo > 1) printmsg(addr, args);
-			
-			/*if(!client_nodes.isEmpty()) {
-				
-				if(client_nodes.indexOf(args[1]) != -1) {
-					client_nodes.elementAt(Integer.parseInt(args[1].toString())).expected(false);
-					client_nodes.remove(Integer.parseInt(args[1].toString()));
-				}	
-			}*/
-			
+			if(verbo > 3) printmsg(addr, args);
 		} else if(addr.equals("/info/node")) {	//INFO NODE - ADD PREVIOUSLY SUBSCRIBED NODES ON SERVER REBOOT
 			if(!subscribtion.isEmpty()) {
 				for(int i = 0;i< subscribtion.size();i++) {
@@ -194,9 +191,10 @@ public class DNConnection {
 					else subscribeNode(subscribtion.elementAt(i).getSusbscribedNode());
 				}
 			}
+			if(verbo > 3) printmsg(addr, args);
 			dnEventInvoke(message);
-		} else if(addr.equals("/info/expected") || addr.equals("/info/slot") ||addr.equals("/info/client") || addr.equals("/info/setter") || addr.equals("/data/node") || addr.equals("/data/slot")) {
-			if(verbo > 2) printmsg(addr, args);
+		} else if(addr.equals("/info/expected") || addr.equals("/info/slot") || addr.equals("/info/client") || addr.equals("/info/setter") || addr.equals("/data/node") || addr.equals("/data/slot") || addr.equals("/removed/node")) {
+			if(verbo > 3) printmsg(addr, args);
 			dnEventInvoke(message);
 		} else {
 			System.err.println("\nSenseWorldDataNetwork unexpected message from server: ");
@@ -243,12 +241,13 @@ public class DNConnection {
 	}
 	
 	/**
-	 * Sets the level of verbosity.<br />  
-	 * \t1 prints server errors.<br />
-	 * 2 prints server errors and warnings.<br />
-	 * 3 prints server errors, warnings and server replies to registration and subscription.<br />
-	 * 4 prints server errors, warnings, registration/substription replies and all client errors.<br />
-	 * 5 prints all of the above plus "ping" messages from the server.<br />
+	 * Sets the level of verbosity.<br /><br /> 
+	 * 0 - only sever announce and quit messages.<br />
+	 * 1 - server errors.<br />
+	 * 2 - server warnings.<br />
+	 * 3 - client warnings.<br />
+	 * 4 - server responses.<br />
+	 * 5 - server ping messages.<br />
 	 * @param level the level of verbosity to be set.
 	 */
 	public void setVerbo(int level) {
@@ -265,6 +264,7 @@ public class DNConnection {
 	
 	/**
 	 * Prints the recieved OSCMessage cleanly to the console.
+	 * Used for debugging.
 	 * 
 	 * @param addr the OSCMessage's address.
 	 * @param args the OSCMessage's aguments
@@ -297,7 +297,7 @@ public class DNConnection {
 			OSCMessage msg = new OSCMessage("/register", arg);
 			OSCMessage rsp = new OSCMessage("/registered", arg);
 			Responder responder = new Responder(in, out, msg, rsp);
-			pingResponder = new PingResponder(in, out);
+			pingResponder = new PingResponder(in, out, name);
 		}
 	}
 	
@@ -312,7 +312,20 @@ public class DNConnection {
 			Responder responder = new Responder(in, out, msg, rsp);
 			pingResponder.removePingResponder();
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered.  Cannot unregister.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered.  Cannot unregister.");		
+		}
+	}
+	
+	/**
+	 * Query all.
+	 */ 
+	public void queryAll() {
+		if(isRegistered) {
+			Object[] arg = {incoming_port, name};	
+			OSCMessage msg = new OSCMessage("/query/all", arg);
+			out.send(msg);
+		} else {
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
 		}
 	}
 	
@@ -321,11 +334,11 @@ public class DNConnection {
 	 */
 	public void queryExpected() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/query/expected", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
 		}
 	}
 	
@@ -334,11 +347,11 @@ public class DNConnection {
 	 */
 	public void queryNodes() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/query/nodes", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
 		}
 	}
 	
@@ -347,11 +360,11 @@ public class DNConnection {
 	 */
 	public void querySlots() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/query/slots", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");	
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");	
 		}	
 	}
 	
@@ -360,11 +373,11 @@ public class DNConnection {
 	 */
 	public void queryClients() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/query/clients", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
 		}
 	}
 	
@@ -373,11 +386,11 @@ public class DNConnection {
 	 */
 	public void querySetters() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/query/setters", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
 		}
 	}
 	
@@ -386,11 +399,11 @@ public class DNConnection {
 	 */
 	public void querySubscriptions() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/query/subscriptions", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
 		}
 	}
 	
@@ -399,11 +412,11 @@ public class DNConnection {
 	 */
 	public void subscribeAll() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/subscribe/all", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot subscribe to nodes.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot subscribe to nodes.");		
 		}
 	}
 	
@@ -412,11 +425,11 @@ public class DNConnection {
 	 */
 	public void unsubscribeAll() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/unsubscribe/all", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unsubscribe from nodes.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unsubscribe from nodes.");		
 		}
 	}
 	
@@ -427,11 +440,11 @@ public class DNConnection {
 	 */
 	public void subscribeNode(int nodeId) {
 		if(isRegistered) {
-			Object[] arg = {incoming_port, nodeId};	
+			Object[] arg = {incoming_port, name, nodeId};	
 			OSCMessage msg = new OSCMessage("/subscribe/node", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot subscribe to nodes.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot subscribe to nodes.");		
 		}
 	}
 	
@@ -442,12 +455,11 @@ public class DNConnection {
 	 */
 	public void unsubscribeNode(int nodeId) {
 		if(isRegistered) {
-			Object[] arg = {incoming_port, nodeId};	
+			Object[] arg = {incoming_port, name, nodeId};	
 			OSCMessage msg = new OSCMessage("/unsubscribe/node", arg);
-			OSCMessage rsp = new OSCMessage("/unsubscribed/node", arg);
-			Responder responder = new Responder(in, out, msg, rsp);
+			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unsubscribe from nodes.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unsubscribe from nodes.");		
 		}
 	}
 	
@@ -459,12 +471,11 @@ public class DNConnection {
 	 */
 	public void subscribeSlot(int nodeId, int slotId) {
 		if(isRegistered) {
-			Object[] arg = {incoming_port, nodeId, slotId};	
+			Object[] arg = {incoming_port, name, nodeId, slotId};	
 			OSCMessage msg = new OSCMessage("/subscribe/slot", arg);
-			OSCMessage rsp = new OSCMessage("/subscribed/slot", arg);
-			Responder responder = new Responder(in, out, msg, rsp);
+			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot subscribe to slots.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot subscribe to slots.");		
 		}
 	}
 	
@@ -487,12 +498,22 @@ public class DNConnection {
 	 */
 	public void unsubscribeSlot(int nodeId, int slotId) {
 		if(isRegistered) {
-			Object[] arg = {incoming_port, nodeId, slotId};	
+			Object[] arg = {incoming_port, name, nodeId, slotId};	
 			OSCMessage msg = new OSCMessage("/unsubscribe/slot", arg);
-			OSCMessage rsp = new OSCMessage("/unsubscribed/slot", arg);
-			Responder responder = new Responder(in, out, msg, rsp);
+			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unsubscribe from slots.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unsubscribe from slots.");		
+		}
+	}
+	
+	/**
+	 * Allows to subscribe to multiple slots at once.
+	 * @param nodeId the ID of the node that contains the slot to subscribe to.
+	 * @param slotId the IDs of the slots to subscribe to.
+	 */
+	public void unsubscribeSlot(int nodeId, int[] slotId) {
+		if(isRegistered) {
+			for(int i = 0;i < slotId.length;i++) unsubscribeSlot(nodeId, slotId[i]);
 		}
 	}
 	
@@ -504,12 +525,11 @@ public class DNConnection {
 	 */
 	public void getNode(int nodeId) {
 		if(isRegistered) {
-			Object[] arg = {incoming_port, nodeId};	
+			Object[] arg = {incoming_port, name, nodeId};	
 			OSCMessage msg = new OSCMessage("/get/node", arg);
-			OSCMessage rsp = new OSCMessage("/data/node", arg);
-			Responder responder = new Responder(in, out, msg, rsp);
+			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query nodes.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query nodes.");		
 		}	
 	}
 	
@@ -522,12 +542,11 @@ public class DNConnection {
 	 */	
 	public void getSlot(int nodeId, int slotId) {
 		if(isRegistered) {
-			Object[] arg = {incoming_port, nodeId, slotId};	
+			Object[] arg = {incoming_port, name, nodeId, slotId};	
 			OSCMessage msg = new OSCMessage("/get/slot", arg);
-			OSCMessage rsp = new OSCMessage("/data/slot", arg);
-			Responder responder = new Responder(in, out, msg, rsp);
+			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query slots.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query slots.");		
 		}	
 	}
 
@@ -550,13 +569,14 @@ public class DNConnection {
 					args.add(i, data[i]);
 				}	
 				args.add(0, incoming_port);
-				args.add(1, node.nodeId);
+				args.add(1, name);
+				args.add(2, node.nodeId);
 				Object[] arg = args.toArray();	
 				OSCMessage msg = new OSCMessage("/set/data", arg);
 				out.send(msg);
 			}
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: either the client is not registered or the node is not expected. Cannot set node "+node.nodeId);		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: either the client is not registered or the node is not expected. Cannot set node "+node.nodeId);		
 		}
 	}
 	
@@ -579,13 +599,14 @@ public class DNConnection {
 					args.add(i, data[i]);
 				}	
 				args.add(0, incoming_port);
-				args.add(1, node.nodeId);
+				args.add(1, name);
+				args.add(2, node.nodeId);
 				Object[] arg = args.toArray();	
 				OSCMessage msg = new OSCMessage("/set/data", arg);
 				out.send(msg);
 			}
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot set nodes.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot set nodes.");		
 		}
 	}
 	
@@ -597,7 +618,7 @@ public class DNConnection {
 	 */
 	public void removeNode(DNNode node) {
 		if(isRegistered && node.isExpected()) {
-			Object[] arg = {incoming_port, node.nodeId};	
+			Object[] arg = {incoming_port, name, node.nodeId};	
 			OSCMessage msg = new OSCMessage("/remove/node", arg);
 			out.send(msg);
 		} 
@@ -612,11 +633,11 @@ public class DNConnection {
 	 */
 	public void removeAll() {
 		if(isRegistered) {
-			Object[] arg = {incoming_port};	
+			Object[] arg = {incoming_port, name};	
 			OSCMessage msg = new OSCMessage("/remove/all", arg);
 			out.send(msg);
 		} else {
-			if(verbo > 3) System.err.println("\nSenseWorldDataNetwork warning: the client is unregistered. Cannot remove nodes.");		
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is unregistered. Cannot remove nodes.");		
 		}
 		for(int i = 0;i < client_nodes.size(); i++) {
 			DNNode n = client_nodes.elementAt(i);
@@ -637,11 +658,11 @@ public class DNConnection {
 			client_nodes.addElement(node);
 		}
 		if(isRegistered) {
-			Object[] arg = {incoming_port, node.nodeId, node.getSize(), node.label, node.type};	
+			Object[] arg = {incoming_port, name, node.nodeId, node.getSize(), node.label, node.type};	
 			OSCMessage msg = new OSCMessage("/add/expected", arg);
 			out.send(msg);
 		} else {
-			register();
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot add nodes.");		
 		}
 	}
 	
@@ -660,12 +681,12 @@ public class DNConnection {
 		}
 		if(isRegistered) {
 			for(int i = 0;i < nodes.length;i++) {
-				Object[] arg = {incoming_port, nodes[i].nodeId, nodes[i].getSize(), nodes[i].label, nodes[i].type};	
+				Object[] arg = {incoming_port, name, nodes[i].nodeId, nodes[i].getSize(), nodes[i].label, nodes[i].type};	
 				OSCMessage msg = new OSCMessage("/add/expected", arg);
 				out.send(msg);
 			}
 		} else {
-			register();
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot add nodes.");		
 		}
 	}
 		

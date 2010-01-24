@@ -8,14 +8,6 @@ import java.net.DatagramPacket;
 
 import datanetwork.javaosc.*;
 
-/**
- * <p>Connects to the SenseWorldDataNetwork server's listening port and allows to send it {@link OSCMessage}.</p>
- * <p>Part of <a target="_blank" href="http://sensestage.hexagram.ca">Sense/Stage</a></p>
- * <p>Based on Java OSC.
- * Copyright (C) 2003-2006, C. Ramakrishnan / Illposed Software.
- * All rights reserved.<p>
- */
-
 public class OSCPortOut extends OSCPort {
 
 	protected InetAddress address;

@@ -11,7 +11,7 @@ import java.util.Date;
  * <p>OSC classes are based on Java OSC.
  * Copyright (c) 2002-2006, C. Ramakrishnan / Illposed Software</p>
  *
- * @version 001
+ * @version 002
  * @author Vincent de Belleval
  * @see OSCListener
  * @see OSCPortIn
@@ -23,18 +23,19 @@ public class PingResponder implements OSCListener {
 	OSCPortIn in;
 	OSCPortOut out;
 	OSCMessage pong;
-		
+	String name;
 	/**
 	 * Constructs a PingResponder capable of listening on the client's incoming port as well as to send on its outgoing port.
 	 * 
 	 * @param in the DNConnection OSCPortin.
 	 * @param out the DNConnection OSCPortOut.
 	*/	
-	public PingResponder(OSCPortIn in, OSCPortOut out) {
+	public PingResponder(OSCPortIn in, OSCPortOut out, String name) {
 		this.in = in;
 		this.out = out;
+		this.name = name;
 		
-		Object[] arg = {in.getPort()};
+		Object[] arg = {in.getPort(), name};
 		pong = new OSCMessage("/pong", arg);
 		
 		in.addListener(this);
@@ -47,7 +48,9 @@ public class PingResponder implements OSCListener {
 	 * @param message the recieved OSCMessage.
 	*/
    	public void acceptMessage(OSCMessage message) {
-       	if(message.getAddress().equals("/ping")) {
+		//check if we have receive on the right port and are addressed correctly
+		
+       	if(message.getAddress().equals("/ping") && (int)message.getArgumentFloat(0) == in.getPort()) {
 			out.send(pong);
 	 	}
 	}	
