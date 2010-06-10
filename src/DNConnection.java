@@ -36,6 +36,8 @@ public class DNConnection {
 	Vector<DNNode> client_nodes;
 	Vector<Integer> subscribtion_list;
 	Vector<Subscribtion> subscribtion;
+	Vector<Integer> minibee_list;
+	Vector<MiniBee> minibee;
 	int verbo = 0;
 	String name;
 	String address;
@@ -65,6 +67,8 @@ public class DNConnection {
 		client_nodes = new Vector<DNNode>();
 		subscribtion_list = new Vector<Integer>();
 		subscribtion = new Vector<Subscribtion>();
+		minibee_list = new Vector<Integer>();
+		minibee = new Vector<MiniBee>();
 
 		isRegistered = false;
 		subscribe_all = false;
@@ -196,6 +200,24 @@ public class DNConnection {
 		} else if(addr.equals("/info/expected") || addr.equals("/info/slot") || addr.equals("/info/client") || addr.equals("/info/setter") || addr.equals("/data/node") || addr.equals("/data/slot") || addr.equals("/removed/node")) {
 			if(verbo > 3) printmsg(addr, args);
 			dnEventInvoke(message);
+		} else if(addr.equals("/info/minibee")) {
+			if(verbo > 3) printmsg(addr, args);
+			dnEventInvoke(message);
+		} else if(addr.equals("/mapped/minibee/output") || addr.equals("/mapped/minibee/custom")) {
+			if(verbo > 3) System.out.println("minibee " + args[1] + " mapped to node " + args[0]);
+   
+			if(minibee_list.indexOf(Integer.parseInt(args[1].toString())) == -1) {
+				minibee_list.addElement(Integer.parseInt(args[1].toString()));
+				minibee.addElement(new MiniBee(Integer.parseInt(args[0].toString()), Integer.parseInt(args[1].toString())));
+			}
+		} else if(addr.equals("/unmapped/minibee/custom") || addr.equals("/unmapped/minibee/output")) {
+			if(verbo > 3) System.out.println("minibee " + args[1] + " unmapped from node " + args[0]);
+			
+			int nodeIndex = subscribtion_list.indexOf(Integer.parseInt(args[1].toString()));
+			if(nodeIndex != -1) {
+				subscribtion_list.removeElementAt(nodeIndex);
+				subscribtion.removeElementAt(nodeIndex);
+			}
 		} else {
 			System.err.println("\nSenseWorldDataNetwork unexpected message from server: ");
 			printmsg(addr, args);
@@ -253,7 +275,7 @@ public class DNConnection {
 	public void setVerbo(int level) {
 		verbo = level;
 	}
-	
+		
 	/** 
 	 * Returns the verbosity level.
 	 * @return the current verbosity level.
@@ -284,7 +306,6 @@ public class DNConnection {
 	public boolean isRegistered() {
 		return isRegistered;
 	}
-
 	
 	/** CLIENT MESSAGES TO SERVER **/
 	
@@ -687,6 +708,73 @@ public class DNConnection {
 			}
 		} else {
 			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot add nodes.");		
+		}
+	}
+	
+	/**
+	 * Queries the server as to which MiniBees are present on the network.
+	 */
+	public void minibeeQuery() {
+		if(isRegistered) {
+			Object[] arg = {incoming_port, name};	
+			OSCMessage msg = new OSCMessage("/query/minibees", arg);
+			out.send(msg);
+		} else {
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot query server.");		
+		}
+	}
+	
+	/**
+	 * Handles the mapping to a MiniBee's outputs.
+	 */
+	public void minibeeMap(int nodeId, int minibeeId) {
+		if(isRegistered) {
+			Object[] arg = {incoming_port, name, nodeId, minibeeId};	
+			OSCMessage msg = new OSCMessage("/map/minibee/output", arg);
+			out.send(msg);
+		} else {
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot map MiniBees.");		
+		}
+	}
+	
+	/** 
+	 * Handles the mapping to a MiniBee using a custom message format.  
+	 * This means that the MiniBee will not parse the messages and assumes that you are implementing this in the firmware yourself.
+	 */
+	public void minibeeMapCustom(int nodeId, int minibeeId) {
+		if(isRegistered) {
+			Object[] arg = {incoming_port, name, nodeId, minibeeId};	
+			OSCMessage msg = new OSCMessage("/map/minibee/custom", arg);
+			out.send(msg);
+		} else {
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot map MiniBees.");		
+		}
+	}
+	
+	/**
+	 * Handles the unmapping of a MiniBee's outputs.
+	 */
+	public void minibeeUnmap(int nodeId, int minibeeId) {
+		if(isRegistered) {
+			Object[] arg = {incoming_port, name, nodeId, minibeeId};	
+			OSCMessage msg = new OSCMessage("/unmap/minibee/output", arg);
+			out.send(msg);
+		} else {
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unmap MiniBees.");		
+		}
+	}
+	
+	/** 
+	 * Handles the unmapping of a MiniBee's custom message format.  
+	 */
+	
+	public void minibeeUnmapCustom(int nodeId, int minibeeId) {
+		if(isRegistered) {
+			Object[] arg = {incoming_port, name, nodeId, minibeeId};	
+			OSCMessage msg = new OSCMessage("/unmap/minibee/custom", arg);
+			out.send(msg);
+		} else {
+			if(verbo > 2) System.err.println("\nSenseWorldDataNetwork warning: the client is not yet registered. Cannot unmap MiniBees.");		
 		}
 	}
 		
