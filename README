@@ -1,0 +1,12 @@
+Processing Sense/Stage DataNetwork Client.
+
+
+Drag the folder to the libraries folder:
+
+    For Processing 1.0 the libraries folder is located in your Processing sketch folder.
+    For Processing BETA the libraries folder is in the same folder as the Processing application.
+
+Now, if you start up Processing, you will see the library appear in the File->Sketchbook->libraries. You will find four examples there to start rightaway!
+
+
+For full documentation see: http://docs.sensestage.eu
